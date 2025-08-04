@@ -15,27 +15,20 @@
     <py-config>
         packages = [
             "numpy",
-            "matplotlib"
+            "matplotlib",
+            "librosa"
         ]
     </py-config>
 
     <py-script>
 import numpy as np
 import matplotlib.pyplot as plt
+import librosa
 from js import document
 from pyodide.ffi import create_proxy
 from pyscript import display
 
 def plot_spectrogram(audio_data, sr):
-    plt.figure(figsize=(10, 4))
-    plt.specgram(audio_data, Fs=sr, NFFT=1024, noverlap=512, cmap="viridis")
-    plt.xlabel("Time (s)")
-    plt.ylabel("Frequency (Hz)")
-    plt.title("Spectrogram")
-    plt.colorbar(label="Intensity [dB]")
-    plt.tight_layout()
-    display(plt.gcf(), target="plot", append=False)
-    plt.close()
 
 def handle_audio(event):
     arr = np.array(event.detail.to_py(), dtype=np.float32)
