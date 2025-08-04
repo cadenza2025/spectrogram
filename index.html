@@ -22,8 +22,9 @@
     <py-script>
 import numpy as np
 import matplotlib.pyplot as plt
-from js import Uint8Array, document
+from js import document
 from pyodide.ffi import create_proxy
+from pyscript import display
 
 def plot_spectrogram(audio_data, sr):
     plt.figure(figsize=(10, 4))
@@ -33,16 +34,15 @@ def plot_spectrogram(audio_data, sr):
     plt.title("Spectrogram")
     plt.colorbar(label="Intensity [dB]")
     plt.tight_layout()
-    plt.show()
+    display(plt.gcf(), target="plot", append=False)
+    plt.close()
 
 def handle_audio(event):
-    # Get the audio data from JS (Float32Array)
     arr = np.array(event.detail.to_py(), dtype=np.float32)
     sr = 20000  # Sample rate
     plot_spectrogram(arr, sr)
     document.getElementById("status").innerText = "Spectrogram generated below."
 
-# Register the Python callback for audio data
 audio_proxy = create_proxy(handle_audio)
 document.addEventListener("audio_recorded", audio_proxy)
     </py-script>
