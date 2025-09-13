@@ -1,82 +1,155 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Record and Plot Spectrogram (PyScript)</title>
-    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
-    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+  <title>Real-time Human Voice Spectrogram</title>
+  <style>
+    body {
+      background-color: #111;
+      color: #eee;
+      font-family: sans-serif;
+      text-align: center;
+    }
+    canvas {
+      border: 1px solid #eee;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-    <h2>Record and Plot Spectrogram (PyScript Demo)</h2>
-    <button id="record-btn">Record 3 seconds</button>
-    <div id="status"></div>
-    <div id="plot"></div>
+  <h1>Real-time Human Voice Spectrogram</h1>
+  <canvas id="spectrogramCanvas" width="1000" height="500"></canvas>
+  <br>
+  <button id="startBtn">Start Microphone</button>
+  <button id="stopButton">Stop</button>
+  <button id="clearButton">Clear</button>
 
-    <py-config>
-        packages = [
-            "numpy",
-            "matplotlib",
-            "librosa"
-        ]
-    </py-config>
 
-    <py-script>
-import numpy as np
-import matplotlib.pyplot as plt
-import librosa
-from js import document
-from pyodide.ffi import create_proxy
-from pyscript import display
 
-def plot_spectrogram(audio_data, sr):
+<script>
+const startBtn = document.getElementById('startBtn');
+const canvas = document.getElementById('spectrogramCanvas');
+const stopButton=document.getElementById('stopButton');
+const canvasCtx = canvas.getContext('2d');
 
-def handle_audio(event):
-    arr = np.array(event.detail.to_py(), dtype=np.float32)
-    sr = 20000  # Sample rate
-    plot_spectrogram(arr, sr)
-    document.getElementById("status").innerText = "Spectrogram generated below."
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
 
-audio_proxy = create_proxy(handle_audio)
-document.addEventListener("audio_recorded", audio_proxy)
-    </py-script>
+// Variables for the audio processing
+let audioContext;
+let analyser;
+let dataArray;
+let bufferLength;
+let animationFrameId;
+let stream
 
-    <script>
-    // JavaScript: Record audio and send to PyScript
-    const recordBtn = document.getElementById("record-btn");
-    const statusDiv = document.getElementById("status");
-    let audioContext, mediaRecorder, audioChunks = [];
 
-    recordBtn.onclick = async () => {
-        statusDiv.innerText = "Requesting microphone access...";
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        statusDiv.innerText = "Recording for 3 seconds...";
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({sampleRate: 20000});
-        const source = audioContext.createMediaStreamSource(stream);
-        const processor = audioContext.createScriptProcessor(4096, 1, 1);
-        let buffer = [];
-        processor.onaudioprocess = e => {
-            buffer.push(new Float32Array(e.inputBuffer.getChannelData(0)));
-        };
-        source.connect(processor);
-        processor.connect(audioContext.destination);
+// Color mapping for the spectrogram
+const colorMap = (value) => {
+ //  Normalize value from 0-255 to 0-360 for HSL hue
+ /* const hue = 360 - (value / 255 * 360);
+  return `hsl(${hue}, 100%, 50%)`;*/
+  const hue = value / 255 * 360;
+  if (hue == 0){
+  return 'hsl(0, 0%, 0%)';
+  }
+  else{
+  return `hsl(${hue}, 100%, 50%)`;
+  }
+};
+// Function to start audio processing
+const startSpectrogram = async () => {
+    
+  if (audioContext) return; // Prevent multiple instances
 
-        setTimeout(() => {
-            processor.disconnect();
-            source.disconnect();
-            stream.getTracks().forEach(track => track.stop());
-            // Concatenate all buffers
-            let flat = new Float32Array(buffer.reduce((acc, cur) => acc + cur.length, 0));
-            let offset = 0;
-            for (let chunk of buffer) {
-                flat.set(chunk, offset);
-                offset += chunk.length;
-            }
-            // Send to PyScript
-            const event = new CustomEvent("audio_recorded", { detail: flat });
-            document.dispatchEvent(event);
-            statusDiv.innerText = "Recording complete. Generating spectrogram...";
-        }, 3000);
-    };
-    </script>
+  audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  analyser = audioContext.createAnalyser();
+
+  // Set the FFT size for the analyser
+  analyser.fftSize = 2048;
+  bufferLength = analyser.frequencyBinCount;
+  dataArray = new Uint8Array(bufferLength);
+
+  try {
+    // Get microphone audio stream
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioSource = audioContext.createMediaStreamSource(stream);
+
+    // Connect the audio graph: source -> analyser -> destination
+    audioSource.connect(analyser);
+    analyser.connect(audioContext.destination);
+
+    // Begin the drawing loop
+    drawSpectrogram();
+    } catch (err) {
+    console.error('Error accessing microphone:', err);
+    alert('Could not access your microphone. Please check your browser permissions.');
+  }
+};
+
+// Add event listener to the start button
+startBtn.addEventListener('click', startSpectrogram);
+// Function to draw the spectrogram
+const drawSpectrogram = () => {
+  
+  // Request the next animation frame
+  animationFrameId=requestAnimationFrame(drawSpectrogram);
+
+  // Copy the frequency data into the dataArray
+  analyser.getByteFrequencyData(dataArray);
+
+  // Shift the existing canvas content to the left
+  const imageData = canvasCtx.getImageData(1, 0, WIDTH - 1, HEIGHT);
+  canvasCtx.putImageData(imageData, 0, 0);
+
+  // Draw the new frequency data as a single vertical line on the right edge
+  for (let i = 0; i < bufferLength; i++) {
+    const value = dataArray[i];
+    const color = colorMap(value);
+//    const y = HEIGHT*(5 - Math.log10((i / bufferLength)+1); // Flip the Y-axis for correct frequency display
+    const y = HEIGHT - (i / bufferLength) * HEIGHT; // Flip the Y-axis for correct frequency display    
+    canvasCtx.fillStyle = color;
+    canvasCtx.fillRect(WIDTH - 1, y, 1, 1);
+  }
+  
+};
+
+stopButton.addEventListener('click', () => {
+
+  if (stream && audioSource && audioContext) {
+    
+    // 1. Disconnect the source node
+    audioSource.disconnect();
+    
+    // 2. Stop all the tracks on the stream
+    stream.getTracks().forEach(track => track.stop());
+    
+    // 3. Close the AudioContext to release hardware resources
+    audioContext.close();
+
+    // 4. Clean up the references
+    stream = null;
+    audioSource = null;
+    audioContext = null;
+
+    console.log("Microphone and AudioContext have been shut down.");
+  }
+
+  // Stop the animation loop
+  cancelAnimationFrame(animationFrameId);
+  
+});
+clearButton.addEventListener('click', () => {
+
+  // visually clear the spectrogram
+  canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+  
+});
+</script>
+
 </body>
 </html>
