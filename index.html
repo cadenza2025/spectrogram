@@ -23,6 +23,7 @@
       flex: 1;
       padding: 20px;
       box-sizing: border-box;
+      min-width: 0; /*add to prevent right become wider than left*/
     }
     /* left panel */
     .section:nth-child(1) {
@@ -84,6 +85,7 @@
       width: 95%;
       height: 35%;
       border: 1px solid #FFF;
+      max-width: 100% /*add to prevent right become wider than left*/
     }
     #spectrogramCanvas {
       position: absolute;
@@ -91,6 +93,7 @@
       left: 0;
       width: 100%;
       height: 100%;
+      max-width: 100% /*add to prevent right become wider than left*/
     }
     #frequency-axis {
       position: absolute;
