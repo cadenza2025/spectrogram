@@ -1,4 +1,4 @@
-    // BAT AUDIO + SPECTROGRAM
+    // BAT AUDIO
     document.getElementById('feedingButton').addEventListener('click', () => {
       playAudio('10006.wav'); 
       
