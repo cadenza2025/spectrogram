@@ -15,6 +15,7 @@ axisCanvas.height = containerHeight;
 
 canvas.width = containerWidth;
 canvas.height = containerHeight;
+const frequencyCutoff = 8000;
 
 
 const HEIGHT=canvas.height;
@@ -27,6 +28,8 @@ let bufferLength;
 let animationFrameId;
 let stream
 let maxFrequency;
+let cutoffIndex;
+
 
 
 
@@ -35,8 +38,8 @@ const colorMap = (value) => {
  //  Normalize value from 0-255 to 0-360 for HSL hue
  /* const hue = 360 - (value / 255 * 360);
   return `hsl(${hue}, 100%, 50%)`;*/
-  const hue = value / 255 * 360;
-  if (hue == 0){
+  const hue = 360-value / 255 * 360;
+  if (hue == 360){
   return 'hsl(0, 0%, 0%)';
   }
   else{
@@ -57,6 +60,8 @@ const startSpectrogram = async () => {
   dataArray = new Uint8Array(bufferLength);
   const sampleRate = audioContext.sampleRate;
   maxFrequency = sampleRate / 2;
+  cutoffIndex = Math.floor((frequencyCutoff / maxFrequency) * bufferLength);
+
 
   try {
     // Get microphone audio stream
@@ -98,7 +103,7 @@ const drawSpectrogram = () => {
     const value = dataArray[i];
     const color = colorMap(value);
 //    const y = canvas.height*(5 - Math.log10((i / bufferLength)+1); // Flip the Y-axis for correct frequency display
-    const y = canvas.height - (i / bufferLength) * canvas.height; // Flip the Y-axis for correct frequency display    
+    const y = canvas.height - (i / cutoffIndex) * canvas.height; // Flip the Y-axis for correct frequency display    
     canvasCtx.fillStyle = color;
     canvasCtx.fillRect(canvas.width - 1, y, 1, 1);
   }
@@ -112,9 +117,9 @@ function drawAxis() {
     axisCtx.fillStyle = 'black';
     axisCtx.textAlign = 'right';
 
-    const labels = [0, 500, 1000, 2000, 4000, 1024, 8000, 16000]; // Target frequencies
+    const labels = [0, 500, 1000, 2000, 4000, 8000]; // Target frequencies
             labels.forEach(freq => {
-              const normalizedFreq = freq / maxFrequency;
+              const normalizedFreq = freq / frequencyCutoff;
               const y = axisCanvas.height - normalizedFreq * axisCanvas.height;
 
               if (y > 0 && y < axisCanvas.height) {
