@@ -10,12 +10,19 @@ const Y_AXIS_WIDTH=50;
 const containerHeight = container.clientHeight;
 const containerWidth = container.clientWidth;
 const dpr = window.devicePixelRatio || 1;
+
+// Spectrogram canvas
 canvas.width = containerWidth * dpr;
 canvas.height = containerHeight * dpr;
+canvas.style.width = containerWidth + 'px';
+canvas.style.height = containerHeight + 'px';
 canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
+// Axis canvas
 axisCanvas.width = Y_AXIS_WIDTH * dpr;
 axisCanvas.height = containerHeight * dpr;
+axisCanvas.style.width = Y_AXIS_WIDTH + 'px';
+axisCanvas.style.height = containerHeight + 'px';
 axisCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
 const frequencyCutoff = 8000;
 
