@@ -29,23 +29,43 @@ let animationFrameId;
 let stream
 let maxFrequency;
 let cutoffIndex;
+const MAGMA_STOPS = [
+  {t: 0.0, r:0, g:0, b:4},
+  {t: 0.25, r:60, g:13, b:91},
+  {t:0.5, r:126, g:43, b:114},
+  {t:0.75, r:211, g:109, b:95},
+  {t:1.0, r:252, g:181, b:62}
+];
 
 
 
 
 // Color mapping for the spectrogram
 const colorMap = (value) => {
- //  Normalize value from 0-255 to 0-360 for HSL hue
- /* const hue = 360 - (value / 255 * 360);
-  return `hsl(${hue}, 100%, 50%)`;*/
-  const hue = 360-value / 255 * 360;
-  if (hue == 360){
-  return 'hsl(0, 0%, 0%)';
-  }
-  else{
-  return `hsl(${hue}, 100%, 50%)`;
-  }
+  const {r, g, b} = grayToMagma(value);
+  return `rgb(${r}, ${g}, ${b})`; // CSS-compatible string
 };
+
+
+//render a magma colormap
+function grayToMagma(gray){
+  let t = Math.max(0, Math.min(1,gray/255));//normalize
+  //find stops
+  let i=0;
+  while(i<MAGMA_STOPS.length-1 && t>MAGMA_STOPS[i+1].t)
+    i++;
+  const a=MAGMA_STOPS[i];
+  const b=MAGMA_STOPS[i+1];
+  const u=(t-a.t)/(b.t-a.t);
+  return{
+    r: Math.round(lerp(a.r, b.r, u)),
+    g: Math.round(lerp(a.g, b.g, u)),
+    b: Math.round(lerp(a.b, b.b, u))
+  };
+  
+};
+function lerp(a, b, t) {return a+(b-a)*t;};
+
 // Function to start audio processing
 const startSpectrogram = async () => {
     
