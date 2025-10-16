@@ -10,6 +10,7 @@ const Y_AXIS_WIDTH=50;
 const containerHeight = container.offsetHeight;
 const containerWidth = container.offsetWidth;
 const dpr = window.devicePixelRatio || 1;
+canvasCtx.scale(dpr, dpr);
 
 // Spectrogram canvas
 canvas.width = containerWidth * dpr;
