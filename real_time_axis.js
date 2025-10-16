@@ -7,8 +7,8 @@ const axisCanvas = document.getElementById('frequency-axis');
 const axisCtx = axisCanvas.getContext('2d')
 const Y_AXIS_WIDTH=50;
 
-const containerHeight = container.clientHeight;
-const containerWidth = container.clientWidth;
+const containerHeight = container.container.offsetHeight;
+const containerWidth = container.container.offsetWidth;
 const dpr = window.devicePixelRatio || 1;
 
 // Spectrogram canvas
