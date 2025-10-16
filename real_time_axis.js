@@ -7,24 +7,14 @@ const axisCanvas = document.getElementById('frequency-axis');
 const axisCtx = axisCanvas.getContext('2d')
 const Y_AXIS_WIDTH=50;
 
-const containerHeight = container.offsetHeight;
-const containerWidth = container.offsetWidth;
-const dpr = window.devicePixelRatio || 1;
-canvasCtx.scale(dpr, dpr);
+const containerHeight = container.clientHeight;
+const containerWidth = container.clientWidth;
 
-// Spectrogram canvas
-canvas.width = containerWidth * dpr;
-canvas.height = containerHeight * dpr;
-canvas.style.width = containerWidth + 'px';
-canvas.style.height = containerHeight + 'px';
-canvasCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+axisCanvas.width = Y_AXIS_WIDTH;
+axisCanvas.height = containerHeight;
 
-// Axis canvas
-axisCanvas.width = Y_AXIS_WIDTH * dpr;
-axisCanvas.height = containerHeight * dpr;
-axisCanvas.style.width = Y_AXIS_WIDTH + 'px';
-axisCanvas.style.height = containerHeight + 'px';
-axisCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+canvas.width = containerWidth;
+canvas.height = containerHeight;
 const frequencyCutoff = 8000;
 
 
@@ -47,7 +37,6 @@ const MAGMA_STOPS = [
   {t:1.0, r:252, g:181, b:62}
 ];
 
-const bandEdges = [0, 64, 128, 256, 512, 1024, 2048, 4096, 8000]; // 8 bands
 
 
 
@@ -129,41 +118,16 @@ const drawSpectrogram = () => {
   const imageData = canvasCtx.getImageData(1, 0, canvas.width - 1, canvas.height);
   canvasCtx.putImageData(imageData, 0, 0);
 
-  const bandWidth = maxFrequency / bufferLength;
-
   // Draw the new frequency data as a single vertical line on the right edge
   for (let i = 0; i < bufferLength; i++) {
     const value = dataArray[i];
     const color = colorMap(value);
-    const freq = (i / bufferLength) * maxFrequency;
-
-    if (freq > frequencyCutoff) continue;
-
-    const yTop = freqToY(freq, canvas.height);
-    const yBottom = freqToY(freq + bandWidth, canvas.height);
-    let yStart = Math.min(yTop, yBottom);
-    let yEnd = Math.max(yTop, yBottom);
-
-// Ensure minimum height of 1 pixel to avoid collapse
-    if (yEnd - yStart < 1) yEnd = yStart + 1;
+//    const y = canvas.height*(5 - Math.log10((i / bufferLength)+1); // Flip the Y-axis for correct frequency display
+    const y = canvas.height - (i / cutoffIndex) * canvas.height; // Flip the Y-axis for correct frequency display    
     canvasCtx.fillStyle = color;
-    canvasCtx.fillRect(canvas.width - 1, yStart, 1, yEnd - yStart);
+    canvasCtx.fillRect(canvas.width - 1, y, 1, 1);
   }
   
-};
-
-function freqToY(freq, canvasHeight) {
-  const bandCount = bandEdges.length - 1;
-  const bandHeight = canvasHeight / bandCount;
-
-  let bandIndex = bandEdges.findIndex((edge, i) => freq >= edge && freq < bandEdges[i + 1]);
-  if (bandIndex === -1) bandIndex = bandCount - 1;
-
-  const f0 = bandEdges[bandIndex];
-  const f1 = bandEdges[bandIndex + 1];
-  const frac = (freq - f0) / (f1 - f0);
-
-  return canvasHeight - (bandIndex + frac) * bandHeight;
 };
 
  // Draw frequency axis
@@ -174,12 +138,15 @@ function drawAxis() {
     axisCtx.textAlign = 'right';
 
     const labels = [0, 500, 1000, 2000, 4000, 8000]; // Target frequencies
-    bandEdges.forEach(freq => {
-      const y = freqToY(freq, axisCanvas.height);
-      axisCtx.fillText(`${freq} Hz`, Y_AXIS_WIDTH - 5, y);
+            labels.forEach(freq => {
+              const normalizedFreq = freq / frequencyCutoff;
+              const y = axisCanvas.height - normalizedFreq * axisCanvas.height;
 
-  });
-  };
+              if (y > 0 && y < axisCanvas.height) {
+                axisCtx.fillText(`${freq} Hz`, Y_AXIS_WIDTH - 5, y);
+              }
+            });
+      };
 
 stopButton.addEventListener('click', () => {
 
