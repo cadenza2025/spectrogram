@@ -15,7 +15,7 @@ axisCanvas.height = containerHeight;
 
 canvas.width = containerWidth;
 canvas.height = containerHeight;
-const frequencyCutoff = 8000;
+const frequencyCutoff = 3000;
 
 
 const HEIGHT=canvas.height;
@@ -137,7 +137,7 @@ function drawAxis() {
     axisCtx.fillStyle = 'black';
     axisCtx.textAlign = 'right';
 
-    const labels = [0, 500, 1000, 2000, 4000, 8000]; // Target frequencies
+    const labels = [0, 64, 128, 256, 512, 1024, 2048]; // Target frequencies
             labels.forEach(freq => {
               const normalizedFreq = freq / frequencyCutoff;
               const y = axisCanvas.height - normalizedFreq * axisCanvas.height;
