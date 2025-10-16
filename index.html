@@ -31,9 +31,9 @@
     }
     /* right panel */
     .section:nth-child(2) {
-     /* display: flex;
+      display: flex;
       flex-direction: column;
-      justify-content: center;
+     /* justify-content: center;
       align-items: center;
       font-family: sans-serif;*/
       background: #e0eaf5;
@@ -81,7 +81,7 @@
     }
     #spectrogram-container {
       position: relative;
-      left: 50px;  /* for frequecy axis, so it is eaqual to the width of frequency*/
+    /*   left: 50px;  for frequecy axis, so it is eaqual to the width of frequency*/
       width: 95%;
       height: 35%;
       border: 1px solid #FFF;
@@ -90,15 +90,16 @@
     #spectrogramCanvas {
       position: absolute;
       top: 0;
-      left: 0;
-      width: 100%;
+      left: 50px;
+      width: calc(100% - 50px);
       height: 100%;
       max-width: 100%
+      z-index:1
     }
     #frequency-axis {
       position: absolute;
       top: 0;
-      left: -50px; /* Adjust based on desired label width */
+      left: 0; /* Adjust based on desired label width */
       width: 50px;
       height: 100%;
     }
