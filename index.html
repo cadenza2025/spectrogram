@@ -114,10 +114,10 @@
       margin-top: 4%;
       cursor: pointer;
     }
-    /* Modal (Pop-up Window) Styles */
+	/* Modal (Pop-up Window) Styles */
         .modal {
             display: none; /* Hidden by default */
-            position: fixed; /* Stay in place */
+            position: absolute; /* Stay in place */
             z-index: 1; /* Sit on top */
             left: 0;
             top: 0;
@@ -164,6 +164,7 @@
             text-decoration: none;
             cursor: pointer;
         }
+}
     
   </style>
 </head>
@@ -173,19 +174,19 @@
     <div class="section">
       <div class="title">Bat Vocalization</div>
       <div class="context">
-        <button id="feedingButton">
-          Feeding <span>🔊</span>
+        <button id="strawsAudioButton">
+          Straws <span>🔊</span>
         </button>
-        <button id="feedingVideoButton" onclick="openModal('feeding test video.mp4')">Video <span>🎥</span></button>
+	<button id="strawsVideoButton" onclick="openModal('Righty Calling for Food.mp4')">Video <span>🎥</span></button>
       </div>
       <div class="spectrogram" id="feedingSpectrogram">
         <img src = "sg10006-0-feeding.png">
       </div>
       <div class="context">
-        <button id="fightingButton">
-          Fighting <span>🔊</span>
+        <button id="rodsAudioButton">
+          Rods <span>🔊</span>
         </button>
-        <button id="fightingVideoButton" onclick="openModal('fighting test video.mp4')">Video <span>🎥</span></button>
+	<button id="rodsVideoButton" onclick="openModal('Queen Peach Vocalization.mp4')">Video <span>🎥</span></button>
       </div>
       <div class="spectrogram" id="fightingSpectrogram">
         <img src = "sg10449-1-fighting.png">
@@ -209,7 +210,8 @@
         <canvas id="frequency-axis"></canvas>
       </div>     
     </div>
-<!-- The Modal/Pop-up -->
+	
+	<!-- The Modal/Pop-up -->
     <div id="videoModal" class="modal">
         
         <!-- Modal content -->
@@ -221,6 +223,7 @@
         </div>
 
     </div>
+
   <script src="comparison.js"></script>
   <script src="real_time_axis.js"></script>
 </body>
