@@ -1,0 +1,216 @@
+#!/usr/bin/env python3
+"""
+spectrogram_creator.py
+
+Convert .wav files to spectrogram images (frequency range 0-10000 Hz).
+
+Usage:
+    python spectrogram_creator.py input.wav
+    python spectrogram_creator.py /path/to/folder_with_wavs
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import wavfile
+from scipy import signal
+
+
+def read_mono_wav(path):
+        sr, data = wavfile.read(path)
+        # Convert to float32 in range [-1,1] if integer types
+        if np.issubdtype(data.dtype, np.integer):
+                max_val = np.iinfo(data.dtype).max
+                data = data.astype("float32") / max_val
+        elif np.issubdtype(data.dtype, np.floating):
+                data = data.astype("float32")
+        # If stereo or multi-channel, convert to mono by averaging channels
+        if data.ndim > 1:
+                data = np.mean(data, axis=1)
+        return sr, data
+
+
+def make_spectrogram(data, sr, freq_max=10000, nperseg=2048, noverlap=None):
+        if noverlap is None:
+                noverlap = nperseg // 2
+        # Compute spectrogram (frequencies, times, Sxx)
+        f, t, Sxx = signal.spectrogram(
+                data,
+                fs=sr,
+                window="hann",
+                nperseg=nperseg,
+                noverlap=noverlap,
+                detrend=False,
+                scaling="density",
+                mode="magnitude",
+        )
+        # Limit frequency range
+        mask = f <= freq_max
+        return f[mask], t, Sxx[mask, :]
+
+
+def apply_highpass(data, sr, cutoff=80.0, order=5):
+        """Apply a Butterworth high-pass filter to the 1-D audio signal.
+
+        Returns the filtered signal. If cutoff <= 0 or sr is too low, returns original data.
+        """
+        if cutoff is None or cutoff <= 0:
+                return data
+        # Require cutoff well below Nyquist
+        nyq = 0.5 * sr
+        if cutoff >= nyq:
+                return data
+        try:
+                b, a = signal.butter(order, cutoff / nyq, btype="highpass")
+                # Use filtfilt for zero-phase
+                return signal.filtfilt(b, a, data)
+        except Exception:
+                # If filtering fails for any reason, return original
+                return data
+
+
+def save_spectrogram_image(f, t, Sxx, outpath, freq_max=10000, cmap="magma"):
+        # Convert magnitude to dB for better dynamic range display.
+        # Sxx is a magnitude spectrogram (mode='magnitude'), so use 20*log10.
+        Sxx_db = 20 * np.log10(Sxx + 1e-20)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        # Improve contrast by fixing the displayed dynamic range to the top ~80 dB
+        # (vmax is the peak, vmin is peak-80 dB). This avoids a collapsed colormap
+        # when most values are near the numerical floor.
+        vmax = np.nanmax(Sxx_db)
+        vmin = vmax - 80.0
+        pcm = ax.pcolormesh(t, f, Sxx_db, shading="gouraud", cmap=cmap, vmin=vmin, vmax=vmax)
+        ax.set_ylabel("Frequency (Hz)")
+        ax.set_xlabel("Time (s)")
+        ax.set_ylim(0, freq_max)
+        cbar = fig.colorbar(pcm, ax=ax, format="%+0.1f dB")
+        cbar.set_label("Magnitude (dB)")
+        ax.set_title(Path(outpath).stem)
+        plt.tight_layout()
+        fig.savefig(outpath, dpi=150)
+        plt.close(fig)
+
+
+def process_file(wav_path: Path, out_dir: Path, freq_max=10000, denoise=True, hp_cutoff=80.0):
+        try:
+                sr, data = read_mono_wav(str(wav_path))
+        except Exception as e:
+                print(f"Failed to read {wav_path}: {e}", file=sys.stderr)
+                return
+        if sr < freq_max * 2:
+                print(
+                        f"Warning: sampling rate {sr} Hz < 2*freq_max ({freq_max*2} Hz). "
+                        "Nyquist limit prevents full frequency range.",
+                        file=sys.stderr,
+                )
+        # Apply time-domain high-pass filtering to remove low-frequency rumble
+        if hp_cutoff and hp_cutoff > 0 and sr >= hp_cutoff * 2:
+                data = apply_highpass(data, sr, cutoff=hp_cutoff)
+        # Choose nperseg based on sample rate for reasonable resolution
+        nperseg = 2048
+        if sr >= 48000:
+                nperseg = 4096
+        # Compute spectrogram; allow spectral denoising in the spectrogram function
+        f, t, Sxx = make_spectrogram(data, sr, freq_max=freq_max, nperseg=nperseg)
+        if denoise:
+                # Spectral denoising via scaled median noise subtraction across time.
+                # Subtracting the full median can remove most useful signal and collapse
+                # the dynamic range (which was causing almost-uniform images). Instead:
+                #  - estimate the per-frequency noise floor (median across time)
+                #  - subtract a fraction (alpha) of that noise
+                #  - floor values to a small fraction of the noise estimate (not an absolute tiny eps)
+                noise_est = np.median(Sxx, axis=1, keepdims=True)
+                alpha = 0.7  # fraction of the noise to subtract; tuneable
+                Sxx = Sxx - alpha * noise_est
+                # Floor relative to the noise estimate so quiet bands don't collapse to a single tiny value
+                floor = np.maximum(noise_est * 1e-2, 1e-12)
+                Sxx = np.maximum(Sxx, floor)
+        outpath = out_dir / (wav_path.stem + ".png")
+        save_spectrogram_image(f, t, Sxx, str(outpath), freq_max=freq_max)
+        print(f"Saved spectrogram: {outpath}")
+
+
+def find_wavs(path: Path):
+        if path.is_file():
+                return [path] if path.suffix.lower() == ".wav" else []
+        wavs = []
+        for p in path.iterdir():
+                if p.is_file() and p.suffix.lower() == ".wav":
+                        wavs.append(p)
+        return wavs
+
+
+def gui_select_paths():
+        """Show simple Tkinter dialogs to choose input (file or directory) and output directory.
+
+        Returns a tuple (input_path_or_dir, output_dir) as strings. Returns (None, None) if user cancels.
+        """
+        try:
+                import tkinter as tk
+                from tkinter import filedialog, messagebox
+        except Exception:
+                # Tkinter not available
+                print("tkinter not available; please provide input on the command line.", file=sys.stderr)
+                return None, None
+
+        root = tk.Tk()
+        root.withdraw()
+
+        # Ask whether the user wants to pick a file or a directory
+        pick_file = messagebox.askyesno("Input type", "Select a WAV file? (Yes = file, No = directory)")
+        if pick_file:
+                inp = filedialog.askopenfilename(title="Select .wav file", filetypes=[("WAV files", "*.wav"), ("All files", "*.*")])
+        else:
+                inp = filedialog.askdirectory(title="Select directory containing .wav files")
+
+        if not inp:
+                return None, None
+
+        out_dir = filedialog.askdirectory(title="Select output directory for spectrograms")
+        # If user cancels out_dir, return input but None for out_dir so caller can fallback to default
+        return inp, out_dir
+
+
+def main():
+        parser = argparse.ArgumentParser(description="Create spectrograms from .wav files (0-10000 Hz).")
+        # Make the input argument optional so we can show a GUI when omitted
+        parser.add_argument("input", nargs="?", help="Input .wav file or directory containing .wav files")
+        parser.add_argument("--out", "-o", help="Output directory (default: ./spectrograms)", default="spectrograms")
+        parser.add_argument("--freq", "-f", type=float, help="Max frequency to show (Hz). Default 10000", default=10000.0)
+        parser.add_argument("--no-denoise", dest="denoise", action="store_false", help="Disable spectral denoising (enabled by default)")
+        parser.add_argument("--hp", type=float, help="High-pass cutoff frequency in Hz to remove low-frequency noise (default 80). Set 0 to disable.", default=80.0)
+        args = parser.parse_args()
+
+        # If input wasn't provided on the command-line, open a simple GUI to ask for paths
+        if args.input is None:
+                gui_inp, gui_out = gui_select_paths()
+                if not gui_inp:
+                        print("No input selected. Exiting.", file=sys.stderr)
+                        sys.exit(1)
+                # prefer GUI output folder if provided, else fall back to CLI/out default
+                inp = Path(gui_inp).expanduser().resolve()
+                out_dir = Path(gui_out).expanduser().resolve() if gui_out else Path(args.out).expanduser().resolve()
+        else:
+                inp = Path(args.input).expanduser().resolve()
+                out_dir = Path(args.out).expanduser().resolve()
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        if not inp.exists():
+                print(f"Input not found: {inp}", file=sys.stderr)
+                sys.exit(1)
+
+        wav_paths = find_wavs(inp)
+        if not wav_paths:
+                print("No .wav files found at input.", file=sys.stderr)
+                sys.exit(1)
+
+        for wav in sorted(wav_paths):
+                process_file(wav, out_dir, freq_max=float(args.freq), denoise=bool(args.denoise), hp_cutoff=float(args.hp))
+
+
+if __name__ == "__main__":
+        main()
