@@ -135,20 +135,27 @@ function freqToY(freq, canvasHeight) {
 };
 
 
+
 function drawAxis() {
-  axisCtx.clearRect(0, 0, axisWidth, HEIGHT);
+  const padding = 6; // Space in pixels at top and bottom
+  const drawableHeight = axisCanvas.height - (padding * 2);
+
+  axisCtx.clearRect(0, 0, axisWidth, axisCanvas.height);
   axisCtx.font      = '12px sans-serif';
   axisCtx.fillStyle = '#000';
   axisCtx.textAlign = 'right';
+  axisCtx.textBaseline = 'middle'; // Centers text on the 'y' coordinate
 
   bandEdges.forEach(freq => {
-  const y = freqToY(freq, axisCanvas.height);
-  axisCtx.fillText(`${freq} Hz`, axisWidth-5, y);
-
+    // Pass the reduced height to your function
+    const y = freqToY(freq, drawableHeight) + padding; 
+    
+    axisCtx.fillText(`${freq} Hz`, axisWidth - 5, y);
   });
 
   requestAnimationFrame(drawAxis);
 }
+
 
 startBtn.addEventListener('click', startSpectrogram);
 
