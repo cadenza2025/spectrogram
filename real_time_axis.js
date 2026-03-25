@@ -20,7 +20,7 @@ const MAGMA_STOPS = [
   {t:1.0, r:252, g:181, b:62}
 ];
 
-const bandEdges = [0, 64, 128, 256, 512, 1024, 2048, 4096, 8000]; // 8 bands
+const bandEdges = [0, 64, 128, 256, 512, 1024, 2048, 4096, 8192]; // 8 bands
 
 function resizeCanvases() {
   const { width: W, height: H } = container.getBoundingClientRect();
