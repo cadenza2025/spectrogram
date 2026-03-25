@@ -73,10 +73,17 @@ function lerp(a, b, t) {return a+(b-a)*t;};
       cutoffIndex = Math.floor((frequencyCutoff / maxFreq) * bufferLength);
 
       try {
+		  const constraints = { 
+        	audio: { 
+            echoCancellation: true, 
+            noiseSuppression: true,
+            autoGainControl: true 
+        	} 
+    	};
         stream     = await navigator.mediaDevices.getUserMedia({ audio: true });
         audioSource = audioContext.createMediaStreamSource(stream);
         audioSource.connect(analyser);
-        analyser.connect(audioContext.destination);
+        //analyser.connect(audioContext.destination);
 
         drawSpectrogram();
         drawAxis();
